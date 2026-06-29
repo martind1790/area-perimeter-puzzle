@@ -1,0 +1,113 @@
+{
+  "id": "puzzle_001",
+  "rows": 5,
+  "cols": 5,
+  "solution": [
+    [
+      6,
+      1,
+      4,
+      4,
+      0
+    ],
+    [
+      6,
+      1,
+      3,
+      0,
+      0
+    ],
+    [
+      6,
+      6,
+      6,
+      0,
+      0
+    ],
+    [
+      6,
+      6,
+      5,
+      2,
+      7
+    ],
+    [
+      2,
+      2,
+      2,
+      2,
+      2
+    ]
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "clueR": 1,
+      "clueC": 4,
+      "area": 5,
+      "perim": 10,
+      "color": "#bfdbfe"
+    },
+    {
+      "id": 1,
+      "clueR": 1,
+      "clueC": 1,
+      "area": 2,
+      "perim": 6,
+      "color": "#d9f99d"
+    },
+    {
+      "id": 2,
+      "clueR": 4,
+      "clueC": 3,
+      "area": 6,
+      "perim": 14,
+      "color": "#fbcfe8"
+    },
+    {
+      "id": 3,
+      "clueR": 1,
+      "clueC": 2,
+      "area": 1,
+      "perim": 4,
+      "color": "#fde68a"
+    },
+    {
+      "id": 4,
+      "clueR": 0,
+      "clueC": 3,
+      "area": 2,
+      "perim": 6,
+      "color": "#a5f3fc"
+    },
+    {
+      "id": 5,
+      "clueR": 3,
+      "clueC": 2,
+      "area": 1,
+      "perim": 4,
+      "color": "#fca5a5"
+    },
+    {
+      "id": 6,
+      "clueR": 2,
+      "clueC": 2,
+      "area": 7,
+      "perim": 14,
+      "color": "#c4b5fd"
+    },
+    {
+      "id": 7,
+      "clueR": 3,
+      "clueC": 4,
+      "area": 1,
+      "perim": 4,
+      "color": "#86efac"
+    }
+  ],
+  "meta": {
+    "twoByTwoCount": 2,
+    "branchesNeeded": 1,
+    "difficulty": "medium"
+  }
+}

@@ -1,0 +1,23 @@
+[MASTER]
+# Run pylint on all solver modules (excluding tests, which have their own setup).
+ignore=tests
+
+[MESSAGES CONTROL]
+# duplicate-code: the BFS pattern appears in both core._reachability_ok and
+# difficulty._reachable_empty. They differ in behaviour (one short-circuits,
+# one collects all cells), so extraction would sacrifice the optimisation.
+disable=duplicate-code
+
+[FORMAT]
+max-line-length=100
+
+[BASIC]
+# Short names commonly used in grid/geometry code.
+good-names=r,c,p,q,v,s,n,ok,cl,dr,dc,nr,nc,rr,cc,i,j,k,t0,b,d,e,f
+
+[DESIGN]
+# These thresholds are intentionally relaxed for algorithmic solver code
+# where variable count and nesting are inherent to the algorithm structure.
+max-locals=18
+max-branches=14
+max-nested-blocks=6

@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Python
+__pycache__/
+*.pyc
+
+# Puzzle bank — kept local, never published to the public repo.
+# Only src/puzzles/daily/ (today's puzzles) goes to git.
+puzzle-bank/
+
+# 6×6 puzzles are still generating into src/puzzles/6x6/ from an old run.
+# Once finished, move them: mv src/puzzles/6x6/ puzzle-bank/6x6/
+# Then remove this entry.
+src/puzzles/6x6/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
