@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Claude Code project settings (local dev tooling, not needed in repo)
+.claude/
+
 # Python
 __pycache__/
 *.pyc

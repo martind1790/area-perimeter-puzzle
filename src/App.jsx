@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
+import { getGeom, makeFreshGrid, calcStats, isSolved, playChord } from './gameUtils.js';
+import { Board, StaticBoard } from './Board.jsx';
 
 // ─── Daily puzzle loader ──────────────────────────────────────────────────────
 // Only src/puzzles/daily/ is bundled — one file per size/difficulty combination,
@@ -31,68 +33,6 @@ function pickPuzzle(sizeKey, diff) {
   return DAILY[comboKey(sizeKey, diff)] ?? null;
 }
 
-// ─── Geometry ─────────────────────────────────────────────────────────────────
-
-function getGeom(size) {
-  const gap  = size <= 4 ? 10 : size <= 6 ? 8 : 6;
-  const cell = Math.floor((430 - (size - 1) * gap) / size);
-  const step = cell + gap;
-  const px   = size * cell + (size - 1) * gap;
-  return { size, gap, cell, step, px };
-}
-
-// ─── Puzzle helpers ───────────────────────────────────────────────────────────
-
-function makeFreshGrid(puzzle) {
-  if (!puzzle) return [[]];
-  return Array.from({ length: puzzle.rows }, (_, r) =>
-    Array.from({ length: puzzle.cols }, (_, c) => {
-      const reg = puzzle.regions.find(rg => rg.clueR === r && rg.clueC === c);
-      return reg ? reg.id : -1;
-    })
-  );
-}
-
-function calcStats(grid, size, regions) {
-  const m = {};
-  regions.forEach(r => { m[r.id] = { area: 0, perim: 0 }; });
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const v = grid[r][c];
-      if (v < 0) continue;
-      m[v].area++;
-      [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
-        const nr = r+dr, nc = c+dc;
-        if (nr < 0 || nr >= size || nc < 0 || nc >= size || grid[nr][nc] !== v)
-          m[v].perim++;
-      });
-    }
-  }
-  return m;
-}
-
-function isAdj(r, c, id, grid, size) {
-  return [[-1,0],[1,0],[0,-1],[0,1]].some(([dr,dc]) => {
-    const nr = r+dr, nc = c+dc;
-    return nr >= 0 && nr < size && nc >= 0 && nc < size && grid[nr][nc] === id;
-  });
-}
-
-function playChord() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [261.63, 329.63, 392.0, 523.25].forEach((f, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.value = f; osc.type = 'sine';
-      const t = ctx.currentTime + i * 0.09;
-      gain.gain.setValueAtTime(0.22, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-      osc.start(t); osc.stop(t + 0.18);
-    });
-  } catch {}
-}
 
 function dateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -110,172 +50,6 @@ function fmtDate() {
 
 function fmtDateShort() {
   return new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
-}
-
-// ─── Board component ──────────────────────────────────────────────────────────
-
-function Board({ puzzle, geom, grid, mode, dark, onDragStart, onUpdate }) {
-  const { size, cell, step, px } = geom;
-  const containerRef  = useRef(null);
-  const dragColorRef  = useRef(null);
-  const isDraggingRef = useRef(false);
-  const localGridRef  = useRef(null);
-
-  const clueMap = {};
-  const colorOf = {};
-  puzzle.regions.forEach(reg => {
-    clueMap[`${reg.clueR},${reg.clueC}`] = reg;
-    colorOf[reg.id] = reg.color;
-  });
-
-  const emptyColor = dark ? '#2c2830' : '#ebebea';
-  const radius     = Math.max(5, cell * 0.18);
-  // Clue cells always have light pastel backgrounds regardless of theme,
-  // so their text must always be dark for readability.
-  const clueInk    = '#1a1a1a';
-  const aF         = Math.min(cell * 0.40, 20);
-  const pF         = Math.min(cell * 0.26, 11);
-  const ring       = Math.max(7, pF + 1);
-
-  function cellFromEvent(e) {
-    if (!containerRef.current) return null;
-    const b = containerRef.current.getBoundingClientRect();
-    const col = Math.floor((e.clientX - b.left) / step);
-    const row = Math.floor((e.clientY - b.top)  / step);
-    if (row < 0 || row >= size || col < 0 || col >= size) return null;
-    return { r: row, c: col };
-  }
-
-  function paintAt(r, c) {
-    const g    = localGridRef.current;
-    const clue = clueMap[`${r},${c}`];
-    if (mode === 'erase') {
-      if (clue || g[r][c] < 0) return;
-      g[r][c] = -1;
-      onUpdate(g.map(row => [...row]), null);
-      return;
-    }
-    const col = dragColorRef.current;
-    if (col == null) return;
-    if (g[r][c] === col) return;
-    if (clue && clue.id !== col) return;
-    if (!isAdj(r, c, col, g, size)) return;
-    g[r][c] = col;
-    onUpdate(g.map(row => [...row]), col);
-  }
-
-  function handlePointerDown(e) {
-    e.preventDefault();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
-    const pos = cellFromEvent(e);
-    if (!pos) return;
-    localGridRef.current = grid.map(row => [...row]);
-    onDragStart(grid);
-    isDraggingRef.current = true;
-    const v = localGridRef.current[pos.r][pos.c];
-    if (mode === 'erase') {
-      dragColorRef.current = null;
-      paintAt(pos.r, pos.c);
-      return;
-    }
-    dragColorRef.current = v >= 0 ? v : null;
-  }
-
-  function handlePointerMove(e) {
-    if (!isDraggingRef.current) return;
-    const pos = cellFromEvent(e);
-    if (pos) paintAt(pos.r, pos.c);
-  }
-
-  function handlePointerUp() {
-    isDraggingRef.current = false;
-    dragColorRef.current  = null;
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      style={{ position:'relative', width:px, height:px, touchAction:'none', userSelect:'none',
-               cursor: mode === 'erase' ? 'crosshair' : 'default' }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
-      {/* Cells */}
-      {Array.from({ length: size }, (_, r) =>
-        Array.from({ length: size }, (_, c) => {
-          const v  = grid[r][c];
-          const bg = v >= 0 ? colorOf[v] : emptyColor;
-          return (
-            <div key={`${r}_${c}`} style={{
-              position:'absolute', left:c*step, top:r*step,
-              width:cell, height:cell,
-              background:bg, borderRadius:radius,
-              transition:'background .12s ease',
-            }} />
-          );
-        })
-      )}
-
-      {/* Clue labels */}
-      {puzzle.regions.map(reg => (
-        <div key={`lbl_${reg.id}`} style={{
-          position:'absolute',
-          left: reg.clueC * step + cell / 2,
-          top:  reg.clueR * step + cell / 2,
-          transform:'translate(-50%,-50%)',
-          zIndex:4, pointerEvents:'none',
-          display:'flex', flexDirection:'column', alignItems:'center',
-        }}>
-          <div style={{ fontWeight:800, fontSize:aF, color:clueInk, lineHeight:1,
-                        fontFamily:"'Hanken Grotesk', sans-serif" }}>
-            {reg.area}
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:2, marginTop:1 }}>
-            <span style={{ width:ring, height:ring, borderRadius:'50%',
-                           border:`1.5px solid ${clueInk}`, opacity:.45,
-                           display:'inline-block', flexShrink:0 }} />
-            <span style={{ fontWeight:700, fontSize:pF, color:clueInk, opacity:.7,
-                           lineHeight:1, fontFamily:"'Hanken Grotesk', sans-serif" }}>
-              {reg.perim}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── StaticBoard (home preview & win screen) ──────────────────────────────────
-
-function StaticBoard({ puzzle, cellPx, gap, dark }) {
-  const { rows, cols, regions } = puzzle;
-  const step = cellPx + gap;
-  const px   = cols * cellPx + (cols - 1) * gap;
-  const py   = rows * cellPx + (rows - 1) * gap;
-  const radius = Math.max(3, cellPx * 0.18);
-  const emptyColor = dark ? '#2c2830' : '#ebebea';
-  const colorOf = {};
-  regions.forEach(r => { colorOf[r.id] = r.color; });
-
-  return (
-    <div style={{ position:'relative', width:px, height:py }}>
-      {Array.from({ length: rows }, (_, r) =>
-        Array.from({ length: cols }, (_, c) => {
-          const reg = regions.find(rg => rg.clueR === r && rg.clueC === c);
-          return (
-            <div key={`${r}_${c}`} style={{
-              position:'absolute', left:c*step, top:r*step,
-              width:cellPx, height:cellPx, borderRadius:radius,
-              background: reg ? colorOf[reg.id] : emptyColor,
-              boxShadow: reg ? 'none' : 'inset 0 0 0 1px rgba(0,0,0,.07)',
-            }} />
-          );
-        })
-      )}
-    </div>
-  );
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -324,7 +98,7 @@ export default function App() {
   // ── Win detection ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (screen !== 'play') return;
-    if (!isSolved(grid)) return;
+    if (!isSolved(grid, puzzle)) return;
     playChord();
     const today   = todayStr();
     const lastDay = localStorage.getItem('acre_last_solved') || '';
@@ -339,16 +113,6 @@ export default function App() {
     const t = setTimeout(() => setScreen('win'), 300);
     return () => clearTimeout(t);
   }, [grid]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Solve check ────────────────────────────────────────────────────────────
-  function isSolved(g) {
-    if (!puzzle) return false;
-    for (let r = 0; r < size; r++)
-      for (let c = 0; c < size; c++)
-        if (g[r][c] < 0) return false;
-    const st = calcStats(g, size, puzzle.regions);
-    return puzzle.regions.every(rg => st[rg.id].area === rg.area && st[rg.id].perim === rg.perim);
-  }
 
   // ── Selection switch ───────────────────────────────────────────────────────
   function switchSelection(newSizeKey, newDiff) {

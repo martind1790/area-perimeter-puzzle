@@ -154,17 +154,17 @@ def test_find_duplicates_across_subdirs(tmp_path):
 # Integration test against the live puzzle bank (skipped if bank not yet built)
 # ---------------------------------------------------------------------------
 
-def test_puzzle_bank_globally_unique():
+def test_daily_puzzles_globally_unique():
     """
-    All puzzles in src/puzzles/ must have distinct solution partitions across
-    every grid size and difficulty combination.
+    All puzzles in src/puzzles/daily/ must have distinct solution partitions.
+    The tester/ directory is intentionally populated with copies from the bank
+    and is excluded from this check.
     """
-    puzzle_root = Path(__file__).parents[2] / "src" / "puzzles"
-    if not any(puzzle_root.rglob("*.json")):
-        pytest.skip("Puzzle bank is empty — run generate_bank.py first")
-    dups = find_duplicates(puzzle_root)
+    daily_root = Path(__file__).parents[2] / "src" / "puzzles" / "daily"
+    if not daily_root.exists() or not any(daily_root.glob("*.json")):
+        pytest.skip("Daily puzzles not yet published — run scripts/publish.py first")
+    dups = find_duplicates(daily_root)
     assert not dups, (
-        f"{len(dups)} duplicate pair(s) found:\n"
-        + "\n".join(f"  {a.relative_to(puzzle_root)} == {b.relative_to(puzzle_root)}"
-                    for a, b in dups)
+        f"{len(dups)} duplicate pair(s) in daily/:\n"
+        + "\n".join(f"  {a.name} == {b.name}" for a, b in dups)
     )

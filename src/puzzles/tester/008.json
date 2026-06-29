@@ -1,0 +1,70 @@
+{
+  "id": "puzzle_002",
+  "rows": 4,
+  "cols": 4,
+  "solution": [
+    [
+      2,
+      2,
+      2,
+      3
+    ],
+    [
+      2,
+      2,
+      2,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "clueR": 2,
+      "clueC": 1,
+      "area": 7,
+      "perim": 12,
+      "color": "#bfdbfe"
+    },
+    {
+      "id": 1,
+      "clueR": 2,
+      "clueC": 3,
+      "area": 2,
+      "perim": 6,
+      "color": "#d9f99d"
+    },
+    {
+      "id": 2,
+      "clueR": 0,
+      "clueC": 0,
+      "area": 6,
+      "perim": 10,
+      "color": "#fbcfe8"
+    },
+    {
+      "id": 3,
+      "clueR": 0,
+      "clueC": 3,
+      "area": 1,
+      "perim": 4,
+      "color": "#fde68a"
+    }
+  ],
+  "meta": {
+    "twoByTwoCount": 4,
+    "branchesNeeded": 0,
+    "difficulty": "easy"
+  }
+}

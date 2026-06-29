@@ -1,0 +1,97 @@
+{
+  "id": "puzzle_007",
+  "rows": 5,
+  "cols": 5,
+  "solution": [
+    [
+      2,
+      2,
+      5,
+      5,
+      5
+    ],
+    [
+      1,
+      1,
+      1,
+      1,
+      5
+    ],
+    [
+      0,
+      0,
+      3,
+      3,
+      3
+    ],
+    [
+      0,
+      0,
+      3,
+      3,
+      3
+    ],
+    [
+      4,
+      4,
+      4,
+      4,
+      4
+    ]
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "clueR": 3,
+      "clueC": 1,
+      "area": 4,
+      "perim": 8,
+      "color": "#bfdbfe"
+    },
+    {
+      "id": 1,
+      "clueR": 1,
+      "clueC": 0,
+      "area": 4,
+      "perim": 10,
+      "color": "#d9f99d"
+    },
+    {
+      "id": 2,
+      "clueR": 0,
+      "clueC": 0,
+      "area": 2,
+      "perim": 6,
+      "color": "#fbcfe8"
+    },
+    {
+      "id": 3,
+      "clueR": 3,
+      "clueC": 2,
+      "area": 6,
+      "perim": 10,
+      "color": "#fde68a"
+    },
+    {
+      "id": 4,
+      "clueR": 4,
+      "clueC": 1,
+      "area": 5,
+      "perim": 12,
+      "color": "#a5f3fc"
+    },
+    {
+      "id": 5,
+      "clueR": 0,
+      "clueC": 4,
+      "area": 4,
+      "perim": 10,
+      "color": "#fca5a5"
+    }
+  ],
+  "meta": {
+    "twoByTwoCount": 3,
+    "branchesNeeded": 1,
+    "difficulty": "medium"
+  }
+}
