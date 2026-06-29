@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { isAdj } from './gameUtils.js';
+import { isAdj, calcStats } from './gameUtils.js';
 
 // Clue cells always have light pastel backgrounds regardless of theme.
 const CLUE_INK = '#1a1a1a';
@@ -16,7 +16,7 @@ const CLUE_INK = '#1a1a1a';
  *   onDragStart — called with current grid snapshot before each drag
  *   onUpdate    — called with (newGrid, regionId | null) on each paint
  */
-export function Board({ puzzle, geom, grid, mode, dark, onDragStart, onUpdate }) {
+export function Board({ puzzle, geom, grid, mode, dark, onDragStart, onUpdate, showProgress = true, errorCells = null }) {
   const { size, cell, step, px } = geom;
   const containerRef  = useRef(null);
   const dragColorRef  = useRef(null);
@@ -32,6 +32,7 @@ export function Board({ puzzle, geom, grid, mode, dark, onDragStart, onUpdate })
 
   const emptyColor = dark ? '#2c2830' : '#ebebea';
   const radius     = Math.max(5, cell * 0.18);
+  const liveStats  = showProgress ? calcStats(grid, size, puzzle.regions) : null;
   const aF         = Math.min(cell * 0.40, 20);
   const pF         = Math.min(cell * 0.26, 11);
   const ring       = Math.max(7, pF + 1);
@@ -108,30 +109,79 @@ export function Board({ puzzle, geom, grid, mode, dark, onDragStart, onUpdate })
         ))
       )}
 
-      {puzzle.regions.map(reg => (
-        <div key={`lbl_${reg.id}`} style={{
-          position:'absolute',
-          left: reg.clueC * step + cell / 2,
-          top:  reg.clueR * step + cell / 2,
-          transform:'translate(-50%,-50%)',
-          zIndex:4, pointerEvents:'none',
-          display:'flex', flexDirection:'column', alignItems:'center',
-        }}>
-          <div style={{ fontWeight:800, fontSize:aF, color:CLUE_INK, lineHeight:1,
-                        fontFamily:"'Hanken Grotesk', sans-serif" }}>
-            {reg.area}
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:2, marginTop:1 }}>
-            <span style={{ width:ring, height:ring, borderRadius:'50%',
-                           border:`1.5px solid ${CLUE_INK}`, opacity:.45,
-                           display:'inline-block', flexShrink:0 }} />
-            <span style={{ fontWeight:700, fontSize:pF, color:CLUE_INK, opacity:.7,
-                           lineHeight:1, fontFamily:"'Hanken Grotesk', sans-serif" }}>
-              {reg.perim}
-            </span>
-          </div>
-        </div>
-      ))}
+      {/* Error overlays — shown for cells still in conflict with the solution */}
+      {errorCells && Array.from(errorCells).map(key => {
+        const [r, c] = key.split(',').map(Number);
+        // Only show the overlay while the cell is still wrong
+        if (grid[r]?.[c] === puzzle.solution?.[r]?.[c]) return null;
+        return (
+          <div key={`err_${key}`} style={{
+            position:'absolute', left:c*step, top:r*step,
+            width:cell, height:cell, borderRadius:radius,
+            background:'rgba(217,91,84,0.25)',
+            border:'2px solid rgba(217,91,84,0.7)',
+            pointerEvents:'none', zIndex:3, boxSizing:'border-box',
+          }} />
+        );
+      })}
+
+      {(() => {
+        // Compute once outside the per-region map
+        const gridFull = liveStats !== null && !grid.some(row => row.some(v => v === -1));
+        const GOOD = '#2a9e68', BAD = '#d95b54';
+
+        return puzzle.regions.map(reg => {
+          const cur     = liveStats?.[reg.id];
+          const started = cur && cur.area > 1;
+          const complete = cur && cur.area === reg.area && cur.perim === reg.perim;
+
+          // Area is wrong if: too many cells placed, or grid is full and count doesn't match
+          const areaErr = cur && (cur.area > reg.area || (gridFull && cur.area !== reg.area));
+          // Perimeter is wrong if: area is exactly right but perim differs, or grid full and perim differs
+          const perimErr = cur && ((cur.area === reg.area && cur.perim !== reg.perim) || (gridFull && cur.perim !== reg.perim));
+
+          const areaInk  = complete ? GOOD : areaErr  ? BAD : CLUE_INK;
+          const perimInk = complete ? GOOD : perimErr ? BAD : CLUE_INK;
+
+          return (
+            <div key={`lbl_${reg.id}`} style={{
+              position:'absolute',
+              left: reg.clueC * step + cell / 2,
+              top:  reg.clueR * step + cell / 2,
+              transform:'translate(-50%,-50%)',
+              zIndex:4, pointerEvents:'none',
+              display:'flex', flexDirection:'column', alignItems:'center',
+            }}>
+              <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+                <span style={{ width:ring, height:ring, background:areaInk,
+                               display:'inline-block', flexShrink:0 }} />
+                <span style={{ fontWeight:800, fontSize:aF, lineHeight:1,
+                               fontFamily:"'Hanken Grotesk', sans-serif" }}>
+                  {started && !complete ? (
+                    <><span style={{ color:areaInk }}>{cur.area}</span>
+                      <span style={{ color:CLUE_INK, opacity:.35 }}>/{reg.area}</span></>
+                  ) : (
+                    <span style={{ color:areaInk }}>{reg.area}</span>
+                  )}
+                </span>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:2 }}>
+                <span style={{ width:ring, height:ring, border:`1.5px dashed ${perimInk}`,
+                               opacity: complete ? 1 : .55, display:'inline-block', flexShrink:0 }} />
+                <span style={{ fontWeight:700, fontSize:pF, lineHeight:1,
+                               fontFamily:"'Hanken Grotesk', sans-serif" }}>
+                  {started && !complete ? (
+                    <><span style={{ color:perimInk, opacity:.7 }}>{cur.perim}</span>
+                      <span style={{ color:CLUE_INK, opacity:.28 }}>/{reg.perim}</span></>
+                  ) : (
+                    <span style={{ color:perimInk, opacity: complete ? 1 : .7 }}>{reg.perim}</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          );
+        });
+      })()}
     </div>
   );
 }

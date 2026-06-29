@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { getGeom, makeFreshGrid, calcStats, isSolved, playChord } from './gameUtils.js';
+import { getGeom, makeFreshGrid, calcStats, isSolved, playChord, findLogicalStep } from './gameUtils.js';
 import { Board, StaticBoard } from './Board.jsx';
 
 // ─── Daily puzzle loader ──────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ function fmtDateShort() {
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen,       setScreen]       = useState('home');
+  const [screen,       setScreen]       = useState('tutorial');
   const [sizeKey,      setSizeKey]      = useState(meta.availableCombos[0]?.split('-')[0] ?? '4x4');
   const [difficulty,   setDifficulty]   = useState('medium');
   const [grid,         setGrid]         = useState(() => makeFreshGrid(pickPuzzle('4x4', 'medium')));
@@ -63,8 +63,12 @@ export default function App() {
   const [msg,          setMsg]          = useState(null);
   const [streak,       setStreak]       = useState(0);
   const [dark,         setDark]         = useState(false);
-  const [activeRegion, setActiveRegion] = useState(null);
-  const historyRef = useRef([]);
+  const [showProgress,  setShowProgress]  = useState(true);
+  const [hintMenu,      setHintMenu]      = useState(false);
+  const [errorCells,    setErrorCells]    = useState(null);
+  const historyRef    = useRef([]);
+  const errorTimerRef = useRef(null);
+  const msgTimerRef   = useRef(null);
 
   const puzzle = pickPuzzle(sizeKey, difficulty);
   const size   = puzzle?.rows ?? 4;
@@ -84,10 +88,8 @@ export default function App() {
       const d = localStorage.getItem('acre_dark') === 'true';
       setDark(d);
       document.body.classList.toggle('dark', d);
-      if (localStorage.getItem('acre_first') !== 'false') {
-        setScreen('tutorial');
-        localStorage.setItem('acre_first', 'false');
-      }
+      const sp = localStorage.getItem('acre_progress');
+      if (sp !== null) setShowProgress(sp !== 'false');
     } catch {}
   }, []);
 
@@ -121,7 +123,7 @@ export default function App() {
     setSizeKey(newSizeKey);
     setDifficulty(newDiff);
     setGrid(makeFreshGrid(newPuzzle));
-    setMode('fill'); setMsg(null); setActiveRegion(null);
+    setMode('fill'); setMsg(null);
   }
 
   // ── Start / reset ──────────────────────────────────────────────────────────
@@ -129,14 +131,14 @@ export default function App() {
     if (!puzzle) return;
     historyRef.current = [];
     setGrid(makeFreshGrid(puzzle));
-    setMode('fill'); setMsg(null); setActiveRegion(null);
+    setMode('fill'); setMsg(null);
     setScreen('play');
   }
 
   function resetGrid() {
     historyRef.current.push(JSON.stringify(grid));
     setGrid(makeFreshGrid(puzzle));
-    setMsg(null); setActiveRegion(null);
+    setMsg(null);
   }
 
   // ── Board callbacks ────────────────────────────────────────────────────────
@@ -146,9 +148,8 @@ export default function App() {
     setMsg(null);
   }
 
-  function handleUpdate(newGrid, regionId) {
+  function handleUpdate(newGrid) {
     setGrid(newGrid);
-    if (regionId != null) setActiveRegion(regionId);
   }
 
   // ── Controls ───────────────────────────────────────────────────────────────
@@ -158,25 +159,44 @@ export default function App() {
     setMsg(null);
   }
 
-  function handleCheck() {
-    if (!puzzle) return;
-    let empty = 0;
-    for (let r = 0; r < size; r++)
-      for (let c = 0; c < size; c++)
-        if (grid[r][c] < 0) empty++;
-    let m;
-    if (empty > 0)
-      m = `${empty} cell${empty === 1 ? '' : 's'} still empty.`;
-    else {
-      const st    = calcStats(grid, size, puzzle.regions);
-      const wrong = puzzle.regions.filter(rg => st[rg.id].area !== rg.area || st[rg.id].perim !== rg.perim).length;
-      m = wrong > 0 ? `${wrong} region${wrong === 1 ? '' : 's'} don't match their clues.` : 'All correct!';
-    }
-    setMsg(m);
+  function clearErrors() {
+    clearTimeout(errorTimerRef.current);
+    setErrorCells(null);
   }
 
-  function handleHint() {
+  function handleHintCell() {
     if (!puzzle) return;
+    setHintMenu(false);
+    // Try a logical step first; fall back to any empty cell from the solution
+    const step = findLogicalStep(grid, puzzle);
+    if (step) {
+      historyRef.current.push(JSON.stringify(grid));
+      const g = grid.map(row => [...row]);
+      g[step.r][step.c] = step.regionId;
+      setGrid(g);
+      setMsg('One cell revealed.');
+      clearErrors();
+      return;
+    }
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (grid[r][c] === -1) {
+          historyRef.current.push(JSON.stringify(grid));
+          const g = grid.map(row => [...row]);
+          g[r][c] = puzzle.solution[r][c];
+          setGrid(g);
+          setMsg('One cell revealed.');
+          clearErrors();
+          return;
+        }
+      }
+    }
+    setMsg('All cells are already filled!');
+  }
+
+  function handleHintRegion() {
+    if (!puzzle) return;
+    setHintMenu(false);
     const st     = calcStats(grid, size, puzzle.regions);
     const target = puzzle.regions.find(rg => st[rg.id].area !== rg.area || st[rg.id].perim !== rg.perim);
     if (!target) return;
@@ -187,8 +207,27 @@ export default function App() {
         if (puzzle.solution[r][c] === target.id) g[r][c] = target.id;
         else if (g[r][c] === target.id) g[r][c] = -1;
       }
-    setGrid(g); setActiveRegion(target.id);
-    setMsg("Here's one for you.");
+    setGrid(g);
+    setMsg("Here's one region for you.");
+    clearErrors();
+  }
+
+  function handleHintValidate() {
+    if (!puzzle) return;
+    setHintMenu(false);
+    const wrong = new Set();
+    for (let r = 0; r < size; r++)
+      for (let c = 0; c < size; c++)
+        if (grid[r][c] >= 0 && grid[r][c] !== puzzle.solution[r][c])
+          wrong.add(`${r},${c}`);
+    if (wrong.size === 0) {
+      setMsg('No mistakes found so far!');
+      return;
+    }
+    clearTimeout(errorTimerRef.current);
+    setErrorCells(wrong);
+    errorTimerRef.current = setTimeout(() => setErrorCells(null), 5000);
+    setMsg(`${wrong.size} mistake${wrong.size > 1 ? 's' : ''} highlighted — fix them to clear.`);
   }
 
   function toggleDark() {
@@ -197,27 +236,14 @@ export default function App() {
     try { localStorage.setItem('acre_dark', String(on)); } catch {}
   }
 
-  // ── Readout ────────────────────────────────────────────────────────────────
-  const tip = 'Area = cells inside · Perimeter = outer edges';
-  let readMain = 'Fill every region', readSub = tip, readTone = 'neutral';
-  if (screen === 'play' && puzzle) {
-    if (msg) {
-      readMain = msg; readSub = tip; readTone = 'bad';
-    } else if (activeRegion != null) {
-      const reg = puzzle.regions.find(r => r.id === activeRegion);
-      const st  = calcStats(grid, size, puzzle.regions);
-      const s   = st[activeRegion];
-      if (reg && s) {
-        if (s.area === reg.area && s.perim === reg.perim) {
-          readMain = 'Region complete'; readSub = `${reg.area} cells · perimeter ${reg.perim}`; readTone = 'good';
-        } else {
-          readMain = `${s.area} / ${reg.area} cells`; readSub = `Perimeter ${s.perim} / ${reg.perim}`;
-        }
-      }
-    }
-  }
 
-  const readoutColor = readTone === 'good' ? '#2a9e68' : readTone === 'bad' ? '#d95b54' : 'var(--text)';
+  // Auto-clear hint feedback messages after 3 s
+  useEffect(() => {
+    if (msg) {
+      clearTimeout(msgTimerRef.current);
+      msgTimerRef.current = setTimeout(() => setMsg(null), 3000);
+    }
+  }, [msg]);
 
   // ── Shared layout vars ─────────────────────────────────────────────────────
   const wrap  = { minHeight:'100vh', width:'100%', display:'flex', flexDirection:'column',
@@ -419,7 +445,7 @@ export default function App() {
 
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               {card('📍', 'The clue',
-                'Each coloured square is a clue. The <strong>large number</strong> is the area — how many cells the region must contain. The <strong>circled number</strong> is the perimeter — how many edges are exposed to other regions or the grid border.')}
+                'Each coloured square is a clue. The <strong>filled square ■</strong> shows the area — how many cells the region must contain. The <strong>dashed square □</strong> shows the perimeter — how many edges are exposed to other regions or the grid border.')}
               {card('🎨', 'Grow your region',
                 'Click and drag from a clue cell to paint neighbouring cells with its colour. Keep growing until the area and perimeter both match the clue exactly.')}
               {card('📐', 'Shape matters',
@@ -428,13 +454,11 @@ export default function App() {
                 'Every cell must be filled and every region must match its clue exactly. The puzzle has a unique solution — there is only one valid arrangement.')}
             </div>
 
-            <button onClick={startPlay} disabled={!puzzle} style={{
+            <button onClick={() => setScreen('home')} style={{
               width:'100%', padding:14, border:'none', borderRadius:14,
-              background: puzzle ? 'var(--acc)' : 'var(--btn-bg)',
-              color: puzzle ? '#fff' : 'var(--text-faint)',
+              background:'var(--acc)', color:'#fff',
               fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:15,
-              cursor: puzzle ? 'pointer' : 'not-allowed',
-              opacity: puzzle ? 1 : 0.5,
+              cursor:'pointer',
             }}>
               Got it — let's play
             </button>
@@ -571,36 +595,37 @@ export default function App() {
               }}>?</button>
             </div>
 
-            {/* Legend + mode toggle */}
+            {/* Legend + Progress */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:16,
-                            fontSize:12, fontWeight:600, color:'var(--text-faint)' }}>
-                <span style={{ display:'flex', alignItems:'center', gap:5 }}>
-                  <span style={{ width:9, height:9, background:'#cdb4e8',
-                                 borderRadius:2, display:'inline-block' }} />
+              <div style={{ display:'flex', alignItems:'center', gap:20,
+                            fontSize:14, fontWeight:600, color:'var(--text-muted)' }}>
+                <span style={{ display:'flex', alignItems:'center', gap:7 }}>
+                  <span style={{ width:13, height:13, background:'var(--text)',
+                                 display:'inline-block', opacity:.7 }} />
                   area
                 </span>
-                <span style={{ display:'flex', alignItems:'center', gap:5 }}>
-                  <span style={{ width:11, height:11, border:'1.5px solid var(--acc)',
-                                 borderRadius:'50%', display:'inline-block' }} />
-                  perim
+                <span style={{ display:'flex', alignItems:'center', gap:7 }}>
+                  <span style={{ width:13, height:13, border:'1.5px dashed var(--text)',
+                                 display:'inline-block', opacity:.5 }} />
+                  perimeter
                 </span>
               </div>
-              <div style={{ display:'flex', gap:6, background:'var(--surface)',
-                            border:'1px solid var(--surface-border)',
-                            padding:4, borderRadius:10 }}>
-                {['fill','erase'].map(m => (
-                  <button key={m} onClick={() => setMode(m)} style={{
-                    border:'none', borderRadius:7, padding:'6px 12px',
-                    fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:700, fontSize:12,
-                    cursor:'pointer',
-                    background: mode === m ? 'var(--btn-active-bg)' : 'transparent',
-                    color: mode === m ? 'var(--text)' : 'var(--text-faint)',
-                  }}>
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => {
+                  const next = !showProgress;
+                  setShowProgress(next);
+                  try { localStorage.setItem('acre_progress', String(next)); } catch {}
+                }}
+                title={showProgress ? 'Hide region progress' : 'Show region progress'}
+                style={{
+                  border:'1px solid var(--surface-border)', borderRadius:10, padding:'6px 10px',
+                  background: showProgress ? 'var(--btn-active-bg)' : 'var(--surface)',
+                  color: showProgress ? 'var(--text)' : 'var(--text-faint)',
+                  fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:700, fontSize:12,
+                  cursor:'pointer',
+                }}>
+                Progress
+              </button>
             </div>
 
             {/* Board */}
@@ -611,39 +636,84 @@ export default function App() {
                 mode={mode} dark={dark}
                 onDragStart={handleDragStart}
                 onUpdate={handleUpdate}
+                showProgress={showProgress}
+                errorCells={errorCells}
               />
             </div>
 
-            {/* Readout */}
-            <div style={{ textAlign:'center', minHeight:58, display:'flex',
-                          flexDirection:'column', justifyContent:'center', gap:4 }}>
-              <div style={{ fontFamily:"'DM Serif Display', serif", fontStyle:'italic',
-                            fontSize:22, lineHeight:1.1, color:readoutColor }}>
-                {readMain}
+            {/* Brief hint feedback — only shows when a hint sets a message */}
+            {msg && (
+              <div style={{ textAlign:'center', color:'var(--text-faint)', fontSize:13, fontWeight:500 }}>
+                {msg}
               </div>
-              <div style={{ color:'var(--text-faint)', fontSize:13, fontWeight:500 }}>
-                {readSub}
-              </div>
-            </div>
+            )}
 
-            {/* Action buttons */}
+            {/* Fill / Erase row */}
             <div style={{ display:'flex', gap:10 }}>
               {[
-                { label:'Undo',  onClick: handleUndo,  flex:1   },
-                { label:'Clear', onClick: resetGrid,   flex:1   },
-                { label:'Hint',  onClick: handleHint,  flex:1   },
-                { label:'Check', onClick: handleCheck, flex:1.2, primary:true },
-              ].map(({ label, onClick, flex, primary }) => (
+                { label:'Fill',  active: mode === 'fill',  onClick: () => setMode('fill')  },
+                { label:'Erase', active: mode === 'erase', onClick: () => setMode('erase') },
+              ].map(({ label, active, onClick }) => (
                 <button key={label} onClick={onClick} style={{
-                  flex, padding:13, borderRadius:12, cursor:'pointer',
+                  flex:1, padding:13, borderRadius:12, cursor:'pointer',
                   fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:14,
-                  border: primary ? 'none' : '1px solid var(--btn-border)',
-                  background: primary ? 'var(--acc)' : 'var(--btn-bg)',
-                  color: primary ? '#fff' : 'var(--text)',
+                  border: active ? 'none' : '1px solid var(--btn-border)',
+                  background: active ? 'var(--acc)' : 'var(--btn-bg)',
+                  color: active ? '#fff' : 'var(--text)',
                 }}>
                   {label}
                 </button>
               ))}
+            </div>
+
+            {/* Undo / Clear / Hint row — transforms into hint options in place */}
+            <div style={{ display:'flex', gap:10 }}>
+              {hintMenu ? (
+                <>
+                  {[
+                    { label:'Reveal cell',   title:'Fill one correct cell from the solution', fn: handleHintCell     },
+                    { label:'Reveal region', title:'Complete an entire region',               fn: handleHintRegion   },
+                    { label:'Mistakes',      title:'Highlight incorrect cells in red for 5s', fn: handleHintValidate },
+                  ].map(({ label, title, fn }) => (
+                    <button key={label} onClick={fn} title={title} style={{
+                      flex:1, padding:13, borderRadius:12, cursor:'pointer',
+                      fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:13,
+                      border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text)',
+                    }}>
+                      {label}
+                    </button>
+                  ))}
+                  <button onClick={() => setHintMenu(false)} style={{
+                    padding:'13px 16px', borderRadius:12, cursor:'pointer',
+                    fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:14,
+                    border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text-faint)',
+                  }}>
+                    ✕
+                  </button>
+                </>
+              ) : (
+                <>
+                  {[
+                    { label:'Undo',  onClick: handleUndo },
+                    { label:'Clear', onClick: resetGrid  },
+                  ].map(({ label, onClick }) => (
+                    <button key={label} onClick={onClick} style={{
+                      flex:1, padding:13, borderRadius:12, cursor:'pointer',
+                      fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:14,
+                      border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text)',
+                    }}>
+                      {label}
+                    </button>
+                  ))}
+                  <button onClick={() => setHintMenu(true)} style={{
+                    flex:1, padding:13, borderRadius:12, cursor:'pointer',
+                    fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:14,
+                    border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text)',
+                  }}>
+                    Hint ▾
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
