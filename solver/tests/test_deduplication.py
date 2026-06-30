@@ -7,10 +7,10 @@ import pytest
 
 from deduplication import normalize_solution, load_fingerprints, find_duplicates
 
-
 # ---------------------------------------------------------------------------
 # normalize_solution
 # ---------------------------------------------------------------------------
+
 
 def test_same_partition_different_ids():
     """Two grids with the same regions but different ID assignments → same fingerprint."""
@@ -61,6 +61,7 @@ def test_single_cell_grid():
 # load_fingerprints
 # ---------------------------------------------------------------------------
 
+
 def test_load_fingerprints_empty_dir(tmp_path):
     assert load_fingerprints(tmp_path) == set()
 
@@ -103,6 +104,7 @@ def test_load_fingerprints_recursive(tmp_path):
 # ---------------------------------------------------------------------------
 # find_duplicates
 # ---------------------------------------------------------------------------
+
 
 def test_find_duplicates_empty_dir(tmp_path):
     assert find_duplicates(tmp_path) == []
@@ -154,6 +156,7 @@ def test_find_duplicates_across_subdirs(tmp_path):
 # Integration test against the live puzzle bank (skipped if bank not yet built)
 # ---------------------------------------------------------------------------
 
+
 def test_daily_puzzles_globally_unique():
     """
     All puzzles in src/puzzles/daily/ must have distinct solution partitions.
@@ -164,7 +167,6 @@ def test_daily_puzzles_globally_unique():
     if not daily_root.exists() or not any(daily_root.glob("*.json")):
         pytest.skip("Daily puzzles not yet published — run scripts/publish.py first")
     dups = find_duplicates(daily_root)
-    assert not dups, (
-        f"{len(dups)} duplicate pair(s) in daily/:\n"
-        + "\n".join(f"  {a.name} == {b.name}" for a, b in dups)
+    assert not dups, f"{len(dups)} duplicate pair(s) in daily/:\n" + "\n".join(
+        f"  {a.name} == {b.name}" for a, b in dups
     )

@@ -51,15 +51,23 @@ class Puzzle:
                     cl = self.clue_at[(r, c)]
                     row_str += f"[A{cl.area:2d}P{cl.perim:2d}]"
                 else:
-                    row_str += f"[  {solution[r][c]:2d}   ]" if solution else "[       ]"
+                    row_str += (
+                        f"[  {solution[r][c]:2d}   ]" if solution else "[       ]"
+                    )
             print(row_str)
         print()
 
     def display_solution(self, grid: list) -> None:
         """Print a colour-coded solution grid with per-region stats."""
         colours = [
-            "\033[44m", "\033[42m", "\033[45m", "\033[43m",
-            "\033[46m", "\033[41m", "\033[47m", "\033[100m",
+            "\033[44m",
+            "\033[42m",
+            "\033[45m",
+            "\033[43m",
+            "\033[46m",
+            "\033[41m",
+            "\033[47m",
+            "\033[100m",
         ]
         reset = "\033[0m"
         print(f"\n{'='*40}")
@@ -88,6 +96,10 @@ class Puzzle:
                 for c in range(self.cols)
                 if grid[r][c] == cl.id
             }
-            conn = "✓" if is_connected(cells, self.rows, self.cols) else "✗ disconnected"
-            print(f"  Region {cl.id}: A={cl.area}{ok_a}  P={cl.perim}{ok_p}  connected={conn}")
+            conn = (
+                "✓" if is_connected(cells, self.rows, self.cols) else "✗ disconnected"
+            )
+            print(
+                f"  Region {cl.id}: A={cl.area}{ok_a}  P={cl.perim}{ok_p}  connected={conn}"
+            )
         print()

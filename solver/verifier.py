@@ -59,6 +59,8 @@ def verify(  # pylint: disable=too-many-branches
             errors.append(f"Region {cl.id}: not connected.")
 
     if count_2x2_blocks(grid, rows, cols) == 0:
-        errors.append("Puzzle has no 2×2 blocks — at least one region must contain one.")
+        errors.append(
+            "Puzzle has no 2×2 blocks — at least one region must contain one."
+        )
 
     return len(errors) == 0, errors

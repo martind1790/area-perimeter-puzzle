@@ -2,10 +2,10 @@
 
 from difficulty import rate_difficulty, _find_forced_cells, _reachable_empty
 
-
 # ---------------------------------------------------------------------------
 # rate_difficulty — output structure
 # ---------------------------------------------------------------------------
+
 
 def test_rate_difficulty_keys(puzzle_4x4, sol_4x4):
     result = rate_difficulty(puzzle_4x4, sol_4x4)
@@ -43,6 +43,7 @@ def test_rate_difficulty_branches_match_category(puzzle_4x4, sol_4x4):
 # _find_forced_cells
 # ---------------------------------------------------------------------------
 
+
 def test_find_forced_single_adjacent_region(puzzle_4x4):
     """A cell adjacent to only one non-full region must be forced to that region."""
     # Start with clue cells only
@@ -66,6 +67,7 @@ def test_find_forced_empty_on_complete_grid(puzzle_4x4, sol_4x4):
 # ---------------------------------------------------------------------------
 # _reachable_empty
 # ---------------------------------------------------------------------------
+
 
 def test_reachable_empty_isolated_clue(puzzle_4x4):
     """From a lone clue cell, all adjacent empty cells should be reachable."""

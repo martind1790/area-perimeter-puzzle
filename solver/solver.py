@@ -37,7 +37,9 @@ def demo_generate(rows: int, cols: int, seed=None, as_json: bool = False) -> Non
     puzzle.display_solution(sol)
 
     diff = rate_difficulty(puzzle, sol)
-    print(f"  Difficulty: {diff['difficulty']} ({diff['branchesNeeded']} branches needed)")
+    print(
+        f"  Difficulty: {diff['difficulty']} ({diff['branchesNeeded']} branches needed)"
+    )
     print(f"  2×2 blocks: {diff['twoByTwoCount']}")
 
     if as_json:

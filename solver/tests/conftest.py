@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Clue, Puzzle  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Verified 4×4 puzzle (seed=7)
 #
@@ -25,15 +24,20 @@ from models import Clue, Puzzle  # noqa: E402
 #   3 0 0 0           3 (yellow): (2,0)(3,0)                        — domino,   A=2 P=6
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def puzzle_4x4():
     """Return the known 4×4 Puzzle object."""
-    return Puzzle(4, 4, [
-        Clue(0, 2, 3, 6, 10),
-        Clue(1, 0, 3, 5, 10),
-        Clue(2, 0, 1, 3, 8),
-        Clue(3, 3, 0, 2, 6),
-    ])
+    return Puzzle(
+        4,
+        4,
+        [
+            Clue(0, 2, 3, 6, 10),
+            Clue(1, 0, 3, 5, 10),
+            Clue(2, 0, 1, 3, 8),
+            Clue(3, 3, 0, 2, 6),
+        ],
+    )
 
 
 @pytest.fixture

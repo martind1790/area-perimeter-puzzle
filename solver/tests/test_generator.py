@@ -6,10 +6,10 @@ from geometry import count_2x2_blocks, is_connected
 from verifier import verify
 from core import count_solutions
 
-
 # ---------------------------------------------------------------------------
 # generate_puzzle — basic contract
 # ---------------------------------------------------------------------------
+
 
 def test_generate_4x4_returns_result():
     result = generate_puzzle(4, 4, seed=7)
@@ -61,6 +61,7 @@ def test_generate_covers_all_cells():
 # generate_puzzle — determinism
 # ---------------------------------------------------------------------------
 
+
 def test_generate_deterministic():
     r1 = generate_puzzle(4, 4, seed=42)
     r2 = generate_puzzle(4, 4, seed=42)
@@ -86,6 +87,7 @@ def test_different_seeds_may_differ():
 # generate_puzzle — 5×5
 # ---------------------------------------------------------------------------
 
+
 def test_generate_5x5_valid():
     result = generate_puzzle(5, 5, seed=11)
     assert result is not None
@@ -104,8 +106,10 @@ def test_generate_5x5_has_2x2():
 # _random_fill
 # ---------------------------------------------------------------------------
 
+
 def test_random_fill_covers_all_cells():
     import random
+
     rng = random.Random(0)
     grid = _random_fill(4, 4, 4, rng)
     assert grid is not None
@@ -114,6 +118,7 @@ def test_random_fill_covers_all_cells():
 
 def test_random_fill_uses_correct_region_count():
     import random
+
     rng = random.Random(0)
     grid = _random_fill(4, 4, 3, rng)
     assert grid is not None

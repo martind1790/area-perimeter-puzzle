@@ -5,13 +5,26 @@ Pruning strategies (applied in order, cheapest first):
 
 1. Area budget       — region already at its target area → skip (O(1)).
 2. Perimeter budget  — incremental delta would exceed target → skip (O(1)).
-3. Reachability      — after a placement, any incomplete region that can no
+3. Last-cell exact   — when placing a region's final cell, perimeter must
+                       match exactly, not merely be ≤ target. Safe because a
+                       region that reaches its area limit never accepts more
+                       cells, so any still-empty neighbour is guaranteed to
+                       end up in a different region (O(1)).
+4. Reachability      — after a placement, any incomplete region that can no
                        longer reach enough empty cells to fill its remaining
-                       area → prune the whole branch (O(K·N) per node, but
-                       catches dead-ends many levels before the leaf).
+                       area → prune the whole branch (O(K) per node via
+                       region-cell-seeded BFS, catches dead-ends many levels
+                       before the leaf).
 
-Cell ordering: adjacent regions are tried before non-adjacent ones, reducing
-the effective branching factor without additional cost.
+Cell ordering: raster scan, with adjacent regions tried before non-adjacent
+ones. Cells are filled strictly left-to-right, top-to-bottom — this keeps the
+perimeter-budget check sound: when a region is not yet full, cells later in
+raster order are still free to join it, so an "exceeds budget" rejection at
+that point is provisional only in the sense that the region may yet add a
+cell that lowers it back down by raster's own later iterations; ordering by
+raster position (rather than a dynamic MRV reordering) keeps the search
+complete because it always proceeds to the next undecided cell rather than
+discarding a still-open choice.
 """
 
 from copy import deepcopy
@@ -49,13 +62,15 @@ class Solver:  # pylint: disable=too-few-public-methods
         rows, cols = self.rows, self.cols
         grid = [[-1] * cols for _ in range(rows)]
         region_counts: dict[int, int] = {cl.id: 0 for cl in self.puzzle.clues}
-        region_perim:  dict[int, int] = {cl.id: 0 for cl in self.puzzle.clues}
+        region_perim: dict[int, int] = {cl.id: 0 for cl in self.puzzle.clues}
+        region_cells: dict[int, list] = {cl.id: [] for cl in self.puzzle.clues}
 
         # Place clue cells first; compute their initial perimeters afterwards
         # so adjacency between clue cells is handled correctly.
         for cl in self.puzzle.clues:
             grid[cl.clue_r][cl.clue_c] = cl.id
             region_counts[cl.id] = 1
+            region_cells[cl.id].append((cl.clue_r, cl.clue_c))
 
         for cl in self.puzzle.clues:
             p = 0
@@ -68,7 +83,7 @@ class Solver:  # pylint: disable=too-few-public-methods
                     p += 1
             region_perim[cl.id] = p
 
-        self._backtrack(grid, 0, region_counts, region_perim)
+        self._backtrack(grid, 0, region_counts, region_perim, region_cells)
         return self.solutions
 
     # ------------------------------------------------------------------
@@ -95,15 +110,20 @@ class Solver:  # pylint: disable=too-few-public-methods
                 delta += 1
         return delta
 
-    def _reachability_ok(  # pylint: disable=too-many-locals
-        self, grid: list, region_counts: dict[int, int]
+    def _reachability_ok(
+        self,
+        grid: list,
+        region_counts: dict[int, int],
+        region_cells: Optional[dict[int, list]] = None,
     ) -> bool:
         """
         Return False if any incomplete region can no longer reach enough empty
         cells to satisfy its remaining area need.
 
-        Performs one BFS per incomplete region, expanding only through empty cells.
-        Short-circuits as soon as enough reachable cells are found for that region.
+        When region_cells is supplied, BFS seeds directly from the tracked
+        cells of each region (avoids a full-grid scan to find them). Falls
+        back to scanning the grid when omitted. Short-circuits as soon as
+        enough reachable cells are found for that region.
         """
         rows, cols = self.rows, self.cols
         for cl in self.puzzle.clues:
@@ -111,14 +131,18 @@ class Solver:  # pylint: disable=too-few-public-methods
             if remaining <= 0:
                 continue
 
-            # BFS from all current cells of this region
-            visited: set = set()
-            queue: list = []
-            for r in range(rows):
-                for c in range(cols):
-                    if grid[r][c] == cl.id:
-                        visited.add((r, c))
-                        queue.append((r, c))
+            if region_cells is not None:
+                cells = region_cells[cl.id]
+            else:
+                cells = [
+                    (r, c)
+                    for r in range(rows)
+                    for c in range(cols)
+                    if grid[r][c] == cl.id
+                ]
+
+            visited: set = set(cells)
+            queue: list = list(cells)
 
             reachable = 0
             while queue:
@@ -141,12 +165,13 @@ class Solver:  # pylint: disable=too-few-public-methods
 
         return True
 
-    def _backtrack(  # pylint: disable=too-many-locals,too-many-nested-blocks
+    def _backtrack(  # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-arguments
         self,
         grid: list,
         pos: int,
         region_counts: dict[int, int],
         region_perim: dict[int, int],
+        region_cells: dict[int, list],
     ) -> None:
         """Recursive backtracking step; fills one cell at a time in raster order.
         Local variable count and nesting depth are inherent to the algorithm."""
@@ -168,7 +193,11 @@ class Solver:  # pylint: disable=too-few-public-methods
         r, c = pos // cols, pos % cols
 
         # Try adjacent regions first — exploits the connectivity constraint cheaply
-        adj_ids = {grid[nr][nc] for (nr, nc) in neighbours(r, c, rows, cols) if grid[nr][nc] >= 0}
+        adj_ids = {
+            grid[nr][nc]
+            for (nr, nc) in neighbours(r, c, rows, cols)
+            if grid[nr][nc] >= 0
+        }
         candidates = sorted(
             [cl.id for cl in self.puzzle.clues],
             key=lambda x: (0 if x in adj_ids else 1),
@@ -186,22 +215,31 @@ class Solver:  # pylint: disable=too-few-public-methods
 
             # Prune 2: perimeter budget (O(1))
             delta = self._perim_delta(grid, r, c, reg_id)
-            if region_perim[reg_id] + delta > cl.perim:
+            new_perim = region_perim[reg_id] + delta
+            if new_perim > cl.perim:
+                continue
+
+            # Prune 3: last-cell exact perimeter match
+            if region_counts[reg_id] + 1 == cl.area and new_perim != cl.perim:
                 continue
 
             # Place
             grid[r][c] = reg_id
-            region_perim[reg_id]  += delta
+            region_perim[reg_id] += delta
             region_counts[reg_id] += 1
+            region_cells[reg_id].append((r, c))
 
-            # Prune 3: reachability — most expensive, applied after placement
-            if self._reachability_ok(grid, region_counts):
-                self._backtrack(grid, pos + 1, region_counts, region_perim)
+            # Prune 4: reachability — most expensive, applied after placement
+            if self._reachability_ok(grid, region_counts, region_cells):
+                self._backtrack(
+                    grid, pos + 1, region_counts, region_perim, region_cells
+                )
 
             # Unplace
             grid[r][c] = -1
-            region_perim[reg_id]  -= delta
+            region_perim[reg_id] -= delta
             region_counts[reg_id] -= 1
+            region_cells[reg_id].pop()
 
 
 def count_solutions(puzzle: Puzzle, limit: int = 2) -> tuple[int, Optional[list]]:

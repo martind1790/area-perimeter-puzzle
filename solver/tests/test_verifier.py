@@ -3,10 +3,10 @@
 import copy
 from verifier import verify, region_valid
 
-
 # ---------------------------------------------------------------------------
 # region_valid
 # ---------------------------------------------------------------------------
+
 
 def test_region_valid_single_cell():
     assert region_valid({(0, 0)}, area=1, perim=4, rows=4, cols=4)
@@ -36,6 +36,7 @@ def test_region_valid_disconnected():
 # verify — valid solution
 # ---------------------------------------------------------------------------
 
+
 def test_verify_valid_solution(puzzle_4x4, sol_4x4):
     ok, errors = verify(puzzle_4x4, sol_4x4)
     assert ok, f"Expected valid but got errors: {errors}"
@@ -44,6 +45,7 @@ def test_verify_valid_solution(puzzle_4x4, sol_4x4):
 # ---------------------------------------------------------------------------
 # verify — cell-level errors
 # ---------------------------------------------------------------------------
+
 
 def test_verify_empty_cell(puzzle_4x4, sol_4x4):
     grid = copy.deepcopy(sol_4x4)
@@ -65,6 +67,7 @@ def test_verify_wrong_clue_cell(puzzle_4x4, sol_4x4):
 # ---------------------------------------------------------------------------
 # verify — region-level errors
 # ---------------------------------------------------------------------------
+
 
 def test_verify_wrong_area(puzzle_4x4, sol_4x4):
     grid = copy.deepcopy(sol_4x4)
@@ -92,10 +95,14 @@ def test_verify_no_2x2_block(puzzle_4x4):
     # Use a known unique no-2x2 layout for this 4×4 puzzle.
     # Here we just confirm that our VALID solution (which HAS 2×2 blocks) passes.
     from geometry import count_2x2_blocks
-    ok, _ = verify(puzzle_4x4, [
-        [2, 2, 1, 1],
-        [2, 1, 1, 1],
-        [3, 0, 0, 0],
-        [3, 0, 0, 0],
-    ])
+
+    ok, _ = verify(
+        puzzle_4x4,
+        [
+            [2, 2, 1, 1],
+            [2, 1, 1, 1],
+            [3, 0, 0, 0],
+            [3, 0, 0, 0],
+        ],
+    )
     assert ok  # solution has 2×2 blocks → should pass

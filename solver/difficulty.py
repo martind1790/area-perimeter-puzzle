@@ -90,10 +90,13 @@ def _find_forced_cells(grid: list, puzzle: Puzzle) -> dict:
             if grid[r][c] != -1:
                 continue
             candidates = [
-                cl.id for cl in puzzle.clues
+                cl.id
+                for cl in puzzle.clues
                 if region_counts[cl.id] < cl.area
                 and any(
-                    0 <= r + dr < rows and 0 <= c + dc < cols and grid[r + dr][c + dc] == cl.id
+                    0 <= r + dr < rows
+                    and 0 <= c + dc < cols
+                    and grid[r + dr][c + dc] == cl.id
                     for dr, dc in DIRS
                 )
             ]

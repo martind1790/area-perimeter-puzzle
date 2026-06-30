@@ -8,10 +8,10 @@ from geometry import (
     compute_region_stats,
 )
 
-
 # ---------------------------------------------------------------------------
 # neighbours
 # ---------------------------------------------------------------------------
+
 
 def test_neighbours_interior():
     result = sorted(neighbours(2, 2, 5, 5))
@@ -33,6 +33,7 @@ def test_neighbours_1x1_grid():
 # ---------------------------------------------------------------------------
 # compute_perimeter
 # ---------------------------------------------------------------------------
+
 
 def test_perimeter_single_cell_interior():
     assert compute_perimeter({(2, 2)}, 5, 5) == 4
@@ -73,6 +74,7 @@ def test_perimeter_2x3_block():
 # is_connected
 # ---------------------------------------------------------------------------
 
+
 def test_connected_empty_set():
     assert is_connected(set(), 4, 4) is True
 
@@ -101,6 +103,7 @@ def test_not_connected_separated():
 # ---------------------------------------------------------------------------
 # count_2x2_blocks
 # ---------------------------------------------------------------------------
+
 
 def test_count_2x2_empty_grid():
     grid = [[-1] * 4 for _ in range(4)]
@@ -145,13 +148,14 @@ def test_count_2x2_no_cross_region():
 # compute_region_stats
 # ---------------------------------------------------------------------------
 
+
 def test_region_stats_known_solution(sol_4x4):
     stats = compute_region_stats(sol_4x4, 4, 4)
-    assert stats[0]['cells'] == 6
-    assert stats[0]['perim'] == 10
-    assert stats[1]['cells'] == 5
-    assert stats[1]['perim'] == 10
-    assert stats[2]['cells'] == 3
-    assert stats[2]['perim'] == 8
-    assert stats[3]['cells'] == 2
-    assert stats[3]['perim'] == 6
+    assert stats[0]["cells"] == 6
+    assert stats[0]["perim"] == 10
+    assert stats[1]["cells"] == 5
+    assert stats[1]["perim"] == 10
+    assert stats[2]["cells"] == 3
+    assert stats[2]["perim"] == 8
+    assert stats[3]["cells"] == 2
+    assert stats[3]["perim"] == 6

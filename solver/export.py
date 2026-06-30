@@ -7,8 +7,14 @@ from models import Puzzle
 from difficulty import rate_difficulty
 
 PALETTE = [
-    "#bfdbfe", "#d9f99d", "#fbcfe8", "#fde68a",
-    "#a5f3fc", "#fca5a5", "#c4b5fd", "#86efac",
+    "#bfdbfe",
+    "#d9f99d",
+    "#fbcfe8",
+    "#fde68a",
+    "#a5f3fc",
+    "#fca5a5",
+    "#c4b5fd",
+    "#86efac",
 ]
 
 
@@ -28,23 +34,25 @@ def export_puzzle_json(
 
     regions = [
         {
-            "id":    cl.id,
+            "id": cl.id,
             "clueR": cl.clue_r,
             "clueC": cl.clue_c,
-            "area":  cl.area,
+            "area": cl.area,
             "perim": cl.perim,
-            "color": (colors[i] if colors and i < len(colors) else PALETTE[i % len(PALETTE)]),
+            "color": (
+                colors[i] if colors and i < len(colors) else PALETTE[i % len(PALETTE)]
+            ),
         }
         for i, cl in enumerate(puzzle.clues)
     ]
 
     data = {
-        "id":       puzzle_id,
-        "rows":     puzzle.rows,
-        "cols":     puzzle.cols,
+        "id": puzzle_id,
+        "rows": puzzle.rows,
+        "cols": puzzle.cols,
         "solution": sol,
-        "regions":  regions,
-        "meta":     meta,
+        "regions": regions,
+        "meta": meta,
     }
     return json.dumps(data, indent=2)
 

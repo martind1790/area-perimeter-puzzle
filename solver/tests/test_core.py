@@ -3,10 +3,10 @@
 from models import Clue, Puzzle
 from core import Solver, count_solutions
 
-
 # ---------------------------------------------------------------------------
 # count_solutions
 # ---------------------------------------------------------------------------
+
 
 def test_count_solutions_unique(puzzle_4x4, sol_4x4):
     n, sol = count_solutions(puzzle_4x4, limit=2)
@@ -23,9 +23,13 @@ def test_count_solutions_limit_1(puzzle_4x4, sol_4x4):
 def test_count_solutions_returns_none_on_no_solution():
     # Impossible puzzle: clue cell demands A=1,P=4 but is surrounded,
     # making perimeter impossible — solver should find 0 solutions.
-    impossible = Puzzle(2, 2, [
-        Clue(0, 0, 0, 4, 99),  # perim=99 is unreachable in a 2×2 grid
-    ])
+    impossible = Puzzle(
+        2,
+        2,
+        [
+            Clue(0, 0, 0, 4, 99),  # perim=99 is unreachable in a 2×2 grid
+        ],
+    )
     n, sol = count_solutions(impossible, limit=2)
     assert n == 0
     assert sol is None
@@ -34,6 +38,7 @@ def test_count_solutions_returns_none_on_no_solution():
 # ---------------------------------------------------------------------------
 # Solver internals
 # ---------------------------------------------------------------------------
+
 
 def test_solver_perim_delta_boundary():
     """Cell at (0,0) in a 4×4 grid with no same-region neighbours → delta=4."""

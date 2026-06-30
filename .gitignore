@@ -19,6 +19,9 @@ dist-ssr
 __pycache__/
 *.pyc
 
+# Docs — internal planning notes, kept local.
+docs/
+
 # Puzzle bank — kept local, never published to the public repo.
 # Only src/puzzles/daily/ (today's puzzles) goes to git.
 puzzle-bank/
