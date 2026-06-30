@@ -234,9 +234,7 @@ export default function TesterApp() {
     if (!isSolved(grid, puzzle)) return;
     playChord();
     setSolved(true);
-    // Attempt is recorded when the player navigates away from the win screen
-    // (so the per-puzzle rating can be included).
-    setTimeout(() => setScreen('win'), 300);
+    // Modal appears in-place on the play screen via the solved flag.
   }, [grid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Game actions ─────────────────────────────────────────────────────────
@@ -364,7 +362,6 @@ export default function TesterApp() {
     if (!confirm('Clear all progress and start over?')) return;
     localStorage.removeItem(STORAGE_KEY);
     setAttempts([]); setSurvey({}); setTesterName('');
-    setSubmitted(false); setSubmitError(null);
     setScreen('welcome');
   }
 
@@ -637,15 +634,18 @@ export default function TesterApp() {
 
             {/* Top bar */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <button onClick={handleBack} style={{
-                border:'none', background:'transparent', color:'var(--acc)',
-                fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:700, fontSize:14,
-                cursor:'pointer', padding:0,
-              }}>← Back</button>
+              {/* Back button is hidden when the win modal is open */}
+              {!solved ? (
+                <button onClick={handleBack} style={{
+                  border:'none', background:'transparent', color:'var(--acc)',
+                  fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:700, fontSize:14,
+                  cursor:'pointer', padding:0,
+                }}>← Back</button>
+              ) : <div style={{ width:60 }} />}
               <div style={{ textAlign:'center' }}>
                 <div style={{ fontWeight:700, fontSize:15 }}>{playLabel}</div>
               </div>
-              <div style={{ width:40 }} /> {/* spacer */}
+              <div style={{ width:40 }} />
             </div>
 
             {/* Legend + Progress */}
@@ -658,8 +658,11 @@ export default function TesterApp() {
                   area
                 </span>
                 <span style={{ display:'flex', alignItems:'center', gap:7 }}>
-                  <span style={{ width:13, height:13, border:'1.5px dashed var(--text)',
-                                 display:'inline-block', opacity:.5 }} />
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                       style={{ display:'inline-block', opacity:.5 }}>
+                    <rect x="1" y="1" width="11" height="11" stroke="var(--text)"
+                          strokeWidth="1.5" strokeDasharray="3 2"/>
+                  </svg>
                   perimeter
                 </span>
               </div>
@@ -732,7 +735,7 @@ export default function TesterApp() {
                   <button onClick={() => recordAndNavigate('home', false)} style={{
                     flex:1.4, padding:12, borderRadius:12, cursor:'pointer',
                     fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:14,
-                    border:'none', background:'var(--acc)', color:'#fff',
+                    border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text)',
                   }}>
                     Save & go back
                   </button>
@@ -804,82 +807,73 @@ export default function TesterApp() {
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // WIN
-  // ══════════════════════════════════════════════════════════════════════════
-  if (screen === 'win' && puzzle) {
-    const size    = puzzle.rows;
-    const winCell = size >= 6 ? 26 : size >= 5 ? 28 : 30;
-    return (
-      <div style={wrap}>
-        <div style={inner}>
-          {header}
-          <div style={{ display:'flex', flexDirection:'column', gap:24,
-                        alignItems:'center', textAlign:'center' }}>
-            <div className="anim-pop" style={{ display:'flex', justifyContent:'center' }}>
-              <StaticBoard puzzle={puzzle} cellPx={winCell} gap={5} dark={dark} />
-            </div>
-            <div style={{ fontFamily:"'DM Serif Display', serif", fontStyle:'italic',
-                          fontSize:44, lineHeight:1 }}>
-              Solved.
-            </div>
-            <div style={{ color:'var(--text-muted)', fontSize:15 }}>
-              {DIFF_LABEL[difficulty]} · {sizeKey.replace('x', ' × ')}
-            </div>
-
-            {/* Per-puzzle mini-survey */}
-            <div style={{ width:'100%', background:'var(--surface)',
-                          border:'1px solid var(--surface-border)',
-                          borderRadius:16, padding:20,
-                          display:'flex', flexDirection:'column', gap:16, textAlign:'left' }}>
-              <div style={{ fontWeight:700, fontSize:14, color:'var(--text-muted)',
-                            textAlign:'center' }}>
-                Quick rating
-              </div>
-              <div>
-                <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>
-                  How difficult did that feel?
+        {/* Win modal — overlays the play screen when the puzzle is solved */}
+        {solved && (
+          <div style={{
+            position:'fixed', inset:0, zIndex:100,
+            background:'rgba(0,0,0,0.5)', backdropFilter:'blur(2px)',
+            display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
+          }}>
+            <div style={{
+              background:'var(--surface)', borderRadius:20, padding:28,
+              width:'100%', maxWidth:400,
+              display:'flex', flexDirection:'column', gap:20,
+            }}>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontFamily:"'DM Serif Display', serif", fontStyle:'italic',
+                              fontSize:36, lineHeight:1, marginBottom:8 }}>
+                  Solved!
                 </div>
-                <Quick5
-                  value={puzzleRating.difficulty}
-                  onChange={v => setPuzzleRating(r => ({...r, difficulty: v}))}
-                  low="Very easy" high="Very hard"
-                />
-              </div>
-              <div>
-                <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>
-                  How satisfying was solving it?
+                <div style={{ color:'var(--text-muted)', fontSize:14 }}>
+                  {DIFF_LABEL[difficulty]} · {sizeKey.replace('x', ' × ')}
                 </div>
-                <Quick5
-                  value={puzzleRating.satisfaction}
-                  onChange={v => setPuzzleRating(r => ({...r, satisfaction: v}))}
-                  low="Not at all" high="Very satisfying"
-                />
               </div>
-            </div>
 
-            <div style={{ display:'flex', gap:10, width:'100%' }}>
-              <button onClick={() => recordAndNavigate('home', true)} style={{
-                flex:1, padding:14, border:'1px solid var(--btn-border)', borderRadius:14,
-                background:'var(--btn-bg)', color:'var(--text)',
-                fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:15, cursor:'pointer',
-              }}>
-                Play another
-              </button>
-              <button onClick={() => recordAndNavigate('survey', true)} style={{
-                flex:1, padding:14, border:'none', borderRadius:14,
-                background:'var(--acc)', color:'#fff',
-                fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:800, fontSize:15, cursor:'pointer',
-              }}>
-                Finish →
-              </button>
+              {/* Quick per-puzzle rating */}
+              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>
+                    How difficult did that feel?
+                  </div>
+                  <Quick5
+                    value={puzzleRating.difficulty}
+                    onChange={v => setPuzzleRating(r => ({...r, difficulty: v}))}
+                    low="Very easy" high="Very hard"
+                  />
+                </div>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>
+                    How satisfying was solving it?
+                  </div>
+                  <Quick5
+                    value={puzzleRating.satisfaction}
+                    onChange={v => setPuzzleRating(r => ({...r, satisfaction: v}))}
+                    low="Not at all" high="Very satisfying"
+                  />
+                </div>
+              </div>
+
+              {/* Two neutral buttons — neither highlighted */}
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => recordAndNavigate('home', true)} style={{
+                  flex:1, padding:13, borderRadius:12, cursor:'pointer',
+                  fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:700, fontSize:14,
+                  border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text)',
+                }}>
+                  Try more puzzles
+                </button>
+                <button onClick={() => recordAndNavigate('survey', true)} style={{
+                  flex:1, padding:13, borderRadius:12, cursor:'pointer',
+                  fontFamily:"'Hanken Grotesk', sans-serif", fontWeight:700, fontSize:14,
+                  border:'1px solid var(--btn-border)', background:'var(--btn-bg)', color:'var(--text)',
+                }}>
+                  Finish &amp; survey
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -901,6 +895,13 @@ export default function TesterApp() {
         <div style={inner}>
           {header}
           <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+
+            <button onClick={() => setScreen('home')} style={{
+              alignSelf:'flex-start', border:'none', background:'transparent',
+              color:'var(--acc)', fontFamily:"'Hanken Grotesk', sans-serif",
+              fontWeight:700, fontSize:14, cursor:'pointer', padding:0,
+            }}>← Back to puzzles</button>
+
             <div>
               <div style={{ fontFamily:"'DM Serif Display', serif", fontSize:28,
                             lineHeight:1.1, marginBottom:6 }}>

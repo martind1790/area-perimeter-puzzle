@@ -166,8 +166,11 @@ export function Board({ puzzle, geom, grid, mode, dark, onDragStart, onUpdate, s
                 </span>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:2 }}>
-                <span style={{ width:ring, height:ring, border:`1.5px dashed ${perimInk}`,
-                               opacity: complete ? 1 : .55, display:'inline-block', flexShrink:0 }} />
+                <svg width={ring} height={ring} viewBox="0 0 14 14" fill="none"
+                     style={{ opacity: complete ? 1 : 0.55, display:'inline-block', flexShrink:0, verticalAlign:'middle' }}>
+                  <rect x="1" y="1" width="12" height="12" stroke={perimInk}
+                        strokeWidth="1.5" strokeDasharray="3 2"/>
+                </svg>
                 <span style={{ fontWeight:700, fontSize:pF, lineHeight:1,
                                fontFamily:"'Hanken Grotesk', sans-serif" }}>
                   {started && !complete ? (

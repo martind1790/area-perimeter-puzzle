@@ -605,8 +605,11 @@ export default function App() {
                   area
                 </span>
                 <span style={{ display:'flex', alignItems:'center', gap:7 }}>
-                  <span style={{ width:13, height:13, border:'1.5px dashed var(--text)',
-                                 display:'inline-block', opacity:.5 }} />
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                       style={{ display:'inline-block', opacity:.5 }}>
+                    <rect x="1" y="1" width="11" height="11" stroke="var(--text)"
+                          strokeWidth="1.5" strokeDasharray="3 2"/>
+                  </svg>
                   perimeter
                 </span>
               </div>
